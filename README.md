@@ -4,7 +4,7 @@
 - 📫 How to reach me -- LinkedIn: https://www.linkedin.com/in/ng-hui-shi-38554a191/
 - 😄 Pronouns: She/Her
 - ⚡ Fun fact: In my free time, I enjoy creating art pieces using traditional mediums like poster paint, ink on paper/acrylic. :)
-- ✨ Visit here for a collection of my projects thus far in Python
+- ✨ Visit my main repository nghss for a collection of my projects thus far!
 - ✨ Skills: Data Analytics, Data Visualisation and Plotting, Machine Learning
 - I am experienced in: Python, R, Java, PowerApps, Power BI, Tableau, Excel
 
