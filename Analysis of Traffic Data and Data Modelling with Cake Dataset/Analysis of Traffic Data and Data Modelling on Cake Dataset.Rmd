@@ -1,0 +1,277 @@
+---
+title: "STAT2170 Assignment Part II "
+author: "Ng Hui Shi, 48036641"
+date: "2023-10-04"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+install.packages("tinytex")  
+tinytex::install_tinytex()
+
+#### Question 1(a)
+**Produce a plot and a correlation matrix of the data. Comment on possible relationships
+between the response and predictors and relationships between the predictors themselves. **
+
+```{r Q1a}
+traffic <- read.csv("traffic.csv", header=TRUE)
+str(traffic)
+pairs(traffic, panel=panel.smooth)
+cor(traffic)
+```
+The response variable spi has  a moderate negative linear relationship with predictors transport and road. spi also has a weak linear relationship with fuel, and a moderate positive linear relationship with weather. There is no obvious linear relationship between spi and  wind. 
+
+Between predictors themselves, there is a weak positive linear relationship between fuel and transport, fuel and weather, and weather and road. Wind and transport also have a weak negative linear relationship. For other pairs of predictors, there appears to be no obvious relationship between themselves.
+
+#### Question 1(b)  
+**Fit the model using all the predictors to explain the _**spi**_ response. **
+
+```{r Q1b}
+traffic.lm <- lm(spi ~ ., data=traffic)
+summary(traffic.lm)
+```
+
+**Using the full model, estimate the impact of _**weather**_ on _**spi**_. Do this by producing a 95% confidence interval that quantifies the change in _**spi**_ for every one index value increase of _**weather**_ and comment.**
+
+```{r}
+summary.traffic.lm <- summary(traffic.lm)
+se <- sqrt(diag(summary.traffic.lm$cov.unscaled * summary.traffic.lm$sigma^2))[4]
+quantile = qt(p=0.975,df=56)
+4.2456 + quantile*se
+4.2456 - quantile*se
+```
+The required Confidence Interval is  
+
+$\hat{\beta}_{weather}$ $\pm$ $t_{n-p, 1 - \alpha/2}$  _s.e._($\hat{\beta}_{weather}$)  
+= $\hat{\beta}_{weather}$ $\pm$ $t_{56, 0.975}$  _s.e._($\hat{\beta}_{weather}$)  
+= 4.2456 $\pm$ 2.003241 x 0.4472731  
+
+= (3.349604, 5.141596)
+
+Hence, we are 95% confident that for every one index value increase in weather, spi will increase between 3.349604 and 5.141596 on average.
+
+#### Question 1(c)
+**Conduct an F-test for the overall regression i.e. is there _any_ relationship between the response and the predictors. ** 
+
+##### Write down the mathematical multiple regression model for this situation, defining all appropriate parameters.
+
+
+The theoretical model is:  
+
+${Y_i} = {\beta_0} + {\beta_1} X_{i1} + {\beta_2} X_{i2} + {\beta_3} X_{i3} + {\beta_4} X_{i4} + {\beta_5} X_{i5} + {\epsilon_i}$ , i=1,2,..,5  
+
+* Y is the response variable **spi**   
+* $X_{ij}$ are the predictor variables for the i-th observation:
+   * $X_{i1}$ = index for **transport** representing accessibility and availability of public transportation in each region  
+   * $X_{i2}$ = index for **road** indicating the road capacity and infrastructure quality of each region  
+   * $X_{i3}$ = index for **weather** representing the severity of weather conditions in each region, with higher values indicating more severe weather   
+   * $X_{i4}$ = average **fuel** price in each region in USD per gallon  
+   * $X_{i5}$ = average **wind** speed in each region in miles per hour (mph)  
+   
+*  ${\epsilon_i} \sim N( 0, \sigma^2)$,   i = 1,2,..,5  denotes the random variation with constant variance  
+
+
+##### Write down the Hypotheses for the Overall ANOVA test of multiple regression.  
+
+Conducting the F-test, we have:  
+
+* Hypothesis:  
+$H_0: {\beta_1} =  ... = {\beta_5} = 0$ vs 
+$H_1$: not all ${\beta_i} = 0, i=1,2,...,5$  
+
+
+**Produce an ANOVA table for the overall multiple regression model (One combined regression SS source is sufficient).**
+
+```{r}
+anova(traffic.lm)
+```
+**Compute the F statistic for this test.**  
+
+* Regression SS = 4742.6 + 1992.7 + 8651.9 + 258.1 + 58.2 = 15703.5
+* Mean Square Reg = Reg SS/Red df = 15703.5/5 = 3140.7  
+* Test Statistic: $F_{obs}$ = $MS_{reg} / MS_{res}$ = 3140.7 / 98.3 = 31.9501526  
+
+**State the Null distribution for the test statistic. Compute the P-Value. State your conclusion (both statistical conclusion and contextual conclusion).**  
+
+* Null Distribution for test statistic is: ${F_{5,56}}$.
+```{r}
+pf(31.9501526,5,56,lower.tail = FALSE)
+```
+* P-value: $P({F_{5,56}} \ge 31.9501526)$ = 3.063352 x $10^{-15}$ < 0.05  
+* As the p-value is small < 0.05, there is enough evidence to reject ${H_0}$, and there is significant linear relationship between spi and at least one of the 5 predictor variables. 
+
+
+#### Question 1(d)  
+**Validate the full model and comment on whether the full regression model is appropriate to explain the spi.**  
+```{r}
+par(mfrow = c (1,2))
+plot(traffic.lm, which = 1:2) #obtain residual vs fitted and Normal-QQ plots
+par(mfrow = c (2,3))
+plot(resid(traffic.lm) ~ transport, data=traffic, xlab = "transport", ylab = "Residuals")
+abline(h=0, lty = 2)
+plot(resid(traffic.lm) ~ road, data=traffic, xlab = "road", ylab = "Residuals")
+abline(h=0, lty = 2)
+plot(resid(traffic.lm) ~ weather, data=traffic, xlab = "weather", ylab = "Residuals")
+abline(h=0, lty = 2)
+plot(resid(traffic.lm) ~ fuel, data=traffic, xlab = "fuel", ylab = "Residuals")
+abline(h=0, lty = 2)
+plot(resid(traffic.lm) ~ wind, data=traffic, xlab = "wind", ylab = "Residuals")
+abline(h=0, lty = 2)
+```
+The quantile plot of residuals vs fitted values looks evenly scattered and the plots of the normal QQ line show a mostly linear trend, which shows the normality assumption for residuals is appropriate. 
+
+There is no obvious pattern in the residual plots of each predictor variable, so it shows that the linearity and constant variance assumption of the multiple linear model is satisfied. 
+
+#### Question 1(e)
+**Find the $R^2$ and comment on what it means in the context of this dataset.**
+${R^2}$ represents the goodness of fit of the model. 
+${R^2}$ = ${Reg_{S.S.}} / {Total_{S.S.}}$ = 15703.5 / (15703.5+5502.6) = 0.7405181 = 74.1%  
+
+Hence, 74.1% of the variation in **traffic** is explained by the full linear regression model. 
+
+#### Question 1(f)
+**Using model selection procedures discussed in the unit, find the best multiple regression model that explains the data. State the final fitted regression model.**
+```{r}
+summary(traffic.lm) #view summary with all the predictors
+```
+Since **wind** has the highest p-value of 0.445, we will remove it first. 
+
+```{r}
+new.traffic.lm <- update(traffic.lm, . ~ . - wind) #attempt to remove wind
+summary(new.traffic.lm)
+```
+Since **fuel** also has a high p-value = 0.109 in this new model, we will remove it as well. 
+
+```{r}
+final.traffic.lm <- update(traffic.lm, . ~ transport + road + weather) #remove both wind and fuel
+summary(final.traffic.lm)
+```
+We find that all remaining predictors of transport, weather and road are significant and should be kept in the model. The final fitted model equation is therefore:  
+
+${\hat{Y}}$ = 51.7370 - 2.3216$X_1$ - 2.4563$X_2$ + 4.1450$X_3$  
+
+
+#### Question 1(g)
+**Comment on the ${R^2}$ and adjusted ${R^2}$ in the full and final model you chose in part f. In particular explain why those goodness of fitness measures change.**  
+
+In the final model, ${R^2}$ = 0.7256 < 0.7405, while adjusted ${R^2}$ = 0.7114 < 0.7174. 
+In the full model, ${R^2}$ = 0.7405, and adjusted ${R^2}$ = 0.7174. Hence ${R^2}$ and adjusted ${R^2}$ have decreased from the full to fitted model. 
+
+We see that the ${R^2}$ decreases when we have removed 2 predictors, fuel and wind in this case, from the model. 
+
+Although adjusted ${R^2}$ has penalty for the number of predictors in the model, it still decreased in this case when 2 predictors fuel and wind were removed. 
+
+Overall, since ${R^2}$ has decreased from 74.05% to 72.56%, and adjusted ${R^2}$ decreased from 71.74% to 71.14%, this shows that the final model is a better model for the data. 
+
+\newpage
+## Question 2
+```{r}
+cake <- read.table("cake.csv", header=TRUE, sep =",")
+str(cake)
+```
+#### Question 2(a)
+**For this study, is the design balanced or unbalanced? Explain why.**  
+Check number of replicates:  
+```{r}
+table(cake[, c("Temp", "Recipe")])
+```
+From the above, we notice that the design is balanced with an equal number of replicates for each combination of levels of the two factors of Temp and Recipe. 
+
+#### Question 2(b)
+**Construct two different preliminary graphs that investigate different features of the data and comment.**  
+
+Constructing the preliminary plots:  
+```{r}
+boxplot(Angle ~ Recipe + Temp, data = cake)
+```
+```{r}
+par(mfrow = c(1,1))
+with(cake, interaction.plot(Recipe, Temp, Angle))
+with(cake, interaction.plot(Temp, Recipe, Angle))
+```
+From the boxplot, we see that the assumption of equal variance among the different levels is mostly valid due to similar lengths of the boxes.
+
+Likewise, the interaction plots have non-parallel lines which are crossing for the means of each level of the independent variables. Hence, this shows that there is potentially significant interaction effect between the 2 independent variables Recipe and Temp. 
+
+
+#### Question 2(c)
+**Write down the full interaction model for this situation, defining all appropriate parameters.**
+
+The full 2-Way ANOVA model with interaction is:  
+
+${Y_{ijk}}$ = ${\mu}$ + ${\alpha_i}$ + ${\beta_j}$ + ${\gamma_{ij}}$ + ${\epsilon_{ijk}}$
+
+where the parameters are as follows:  
+
+* ${Y_{ijk}}$ : the response variable **Angle**, measuring the angle at which the cake broke   
+* ${\alpha_i}$ : the effect **Recipe**, where there are 3 levels, A, B and C  
+* ${\beta_j}$ : the effect **Temp**, which is the baking temperature of the cake, with 6 levels, 175C, 185C, 195C, 205C, 215C and 225C  
+* ${\gamma_{ij}}$ : interaction effect between **Recipe** and **Temp**  
+* ${\epsilon_{ijk}} \sim N( 0, \sigma^2)$ : represents unexplained variation from the residuals 
+
+\newpage
+#### Question 2(d)
+**Analyse the data to study the effect of Temp and Recipe on breaking Angle of cake at 5% significance level. ** 
+\newline
+We want to test:  
+
+$H_0$: ${\gamma_{ij}}$ = 0 for all i, j  
+$H_1$: at least one ${\gamma_{ij}} \neq 0$  
+
+Fitting this interaction model and since the design is balanced, conduct hypothesis testing: 
+```{r}
+cake.anova <- aov(Angle ~ Temp*Recipe, data = cake) #balanced design testing 
+summary(cake.anova)
+```
+From the above, we see that the interaction terms are not significant since the p-value of the F-test for the interaction term is 0.775632 > 0.05, and we do not reject $H_0$.
+
+Checking for assumptions and validating the framework, we plot diagnostic plots:  
+
+```{r}
+plot(cake.anova, which = 1:2) #residuals vs fitted #normal QQ plot
+```
+Since the residuals are evenly scattered around the reference line (fitted values) in the residual vs. fitted graph, and the QQ plot shows a linear trend of residuals, we can say that the assumptions of constant variability and normality of residuals are valid. 
+
+\newpage
+#### Question 2(e)
+**Repeat the above test analysis for the main effects.**  
+\newline
+Since the interaction terms are found to be not significant, we may remove them and form a new model with the main effects.
+
+```{r}
+new.cake.anova <- aov(Angle ~ Temp + Recipe, data = cake)
+summary(new.cake.anova)
+```
+We see that both main effects of **Temp** and **Recipe** are significant, p-value of **Temp** = 0.000149 < 0.05, and p-value of **Recipe** = 0.014064 < 0.05. Hence, we arrive at our final model. 
+
+Validating the model with diagnostic plots,
+```{r}
+boxplot(Angle ~ Recipe + Temp, data=cake)
+plot(new.cake.anova, which = 1:2)
+```
+We see that the residuals are evenly spread about the fitted reference line and can assume that the constant variability assumption is valid. Likewise, the QQ plot shows a linear trend of points, and hence the normality assumption of residuals also holds. Since the boxplots are of mostly similar length, we may also see that the assumptions of constant variability are satisfied for the new model. 
+
+
+#### Question 2(f)
+**State your conclusions about the effect of Temp and Recipe on the Angle response. These conclusions are only required to be at the qualitative level and can be based off the outcomes of the hypothesis tests in parts d. and e. and the preliminary plots in b. You do not need to statistically examine the multiple comparisons between contrasts and interactions.**
+
+Overall, we find that there is no significant interaction effects between the baking temperature and recipe of a cake. 
+
+Based off the p-values in our new final model, where **Temp** has a much lower p-value of 0.000149 compared to **Recipe** of 0.014064, it shows that whilst both **Temp** and **Recipe** have significant effects separately on **Angle**, **Temp** has a stronger effect on **Angle** compared to **Recipe**. 
+
+
+
+
+
+
+
+
+
+
+
+
+
