@@ -1,0 +1,394 @@
+---
+title: "MH3511 Project Analysis"
+output: html_document
+date: "2024-03-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Introduction 
+
+```{r}
+# Load required libraries 
+library(dplyr)
+library(readr)
+library(e1071) #to check skewness of data
+library(corrplot) #for correlation plot
+library(fastDummies) #to construct dummy variables in Statistical Analysis
+
+# Load the dataset
+insurance = read.csv("insurance.csv")
+```
+
+
+# 2. Data Description
+```{R}
+# Removing missing values 
+insurance = na.omit(insurance)
+
+# convert children into a categorical variable 
+insurance$children = as.factor(insurance$children)
+
+str(insurance) 
+```
+
+
+# 3. Description and Cleaning of dataset
+
+## 3.1 Summary Statistics on the main variable of interest, charges
+
+```{r}
+hist(insurance$charges, main="Histogram of Insurance Charges", xlab="Charges")
+boxplot(insurance$charges, main="Boxplot of Insurance Charges", ylab="Charges")
+skewness(insurance$charges) #1.512483
+
+# Log-transformation: 
+hist(log(insurance$charges), main="Histogram of log_charges", xlab="log_charges")
+boxplot(log(insurance$charges), main="Boxplot of log_charges", ylab="log_charges")
+skewness(log(insurance$charges)) #-0.08989561
+summary(log(insurance$charges))
+```
+
+Replacing charges with log_charges:
+```{r}
+insurance = insurance %>%
+  mutate(log_charges = log(charges)) %>%
+  select(-charges)
+```
+
+
+## 3.2 Summary Statistics 
+
+### 3.2.1 Age
+
+```{r}
+hist(insurance$age, main="Histogram of Age", xlab="Age", ylim = c(0,200))
+boxplot(insurance$age, main="Boxplot of Age", ylab="Age")
+```
+
+### 3.3.2 BMI
+```{r}
+hist(insurance$bmi, main="Histogram of BMI", xlab="BMI")
+boxplot(insurance$bmi, main="Boxplot of BMI", ylab="BMI")
+
+skewness(insurance$bmi) #0.2834106
+```
+
+Removing outliers:
+```{r}
+sum(insurance$bmi > 50) # 3 outliers with bmi > 50 
+
+# Remove the 3 outliers with bmi > 50  
+insurance = insurance %>%
+  filter(bmi <= 50)
+
+# Data visualisation w/o the 3 outliers
+hist(insurance$bmi, main="Histogram of BMI", xlab="BMI")
+boxplot(insurance$bmi, main="Boxplot of BMI", ylab="BMI")
+
+skewness(insurance$bmi) #0.2177818
+```
+
+### 3.2.3 Children
+```{r}
+barplot(table(insurance$children), main="Barplot of Number of Children", ylab="Count", ylim = c(0,600))
+
+summary(insurance$children) #Check frequency 
+
+# Recategorise children categories to obtain similar sample size in each group
+insurance <- insurance %>%
+  mutate(new_children = case_when(
+    children == "0" ~ "0",
+    children == "1" ~ "1",
+    children %in% c("2", "3", "4", "5") ~ "2 or more"
+  )) %>%
+  select(-children)
+
+insurance$new_children = as.factor(insurance$new_children)
+
+# New barplot with recategorised children groups
+barplot(table(insurance$new_children), main="Barplot of Number of Children", ylab="Count", ylim = c(0,600))
+```
+
+### 3.2.4 Sex
+```{r}
+insurance$sex = as.factor(insurance$sex)
+barplot(table(insurance$sex), main="Barplot of Sex", ylab="Count", ylim = c(0,700))
+
+summary(insurance$sex) #Frequency for each gender
+```
+
+### 3.2.5 Smoker
+```{R}
+insurance$smoker = as.factor(insurance$smoker)
+barplot(table(insurance$smoker), main="Barplot of Smoker", ylab="Count", ylim = c(0,1200))
+```
+
+### 3.2.6 Region
+```{r}
+insurance$region = as.factor(insurance$region)
+barplot(table(insurance$region), main="Region", ylab="Count", ylim = c(0,400))
+```
+
+
+## 3.3 Final dataset for Analysis 
+```{r}
+str(insurance)
+```
+
+
+# 4. Statistical Analysis 
+
+## 4.1 Correlations between log_charges and other continuous variable 
+```{r}
+numvars = sapply(insurance, is.numeric)
+
+corrplot(cor(insurance[, numvars]), method = "shade", type = "upper", 
+         addCoef.col = "black", insig = "p-value", number.cex = 1, tl.cex = 1)
+```
+
+## 4.2 Relation between log_charges and age 
+```{r}
+# Group the ages into 3 groups 
+insurance$age_groups <- factor(ifelse(insurance$age < 35, "Youth",
+      ifelse(insurance$age < 50, "Middle Aged", "Seniors")),
+      levels = c("Youth", "Middle Aged", "Seniors"))
+
+# Boxplots to see spread of distributions between different age groups 
+boxplot(log_charges ~ age_groups, data=insurance, main="Boxplot of log_charges against Age Groups")
+
+# Residual Plot and Q-Q Plot
+par(mfrow=c(1,2))
+plot(lm(log_charges ~ age_groups, insurance), 1:2)
+
+# conduct Kruskal-Wallies Test
+kruskal.test(insurance$log_charges, insurance$age_groups)
+pairwise.wilcox.test(insurance$log_charges, insurance$age_groups, p.adjust.method = "none")
+```
+
+## 4.3 Relation between log_charges and bmi 
+```{r}
+# Group bmi into obese and not obese
+insurance$obesity = factor(
+  ifelse(insurance$bmi < 30, "Not Obese", "Obese"),
+  levels = c("Not Obese", "Obese")
+)
+
+# Boxplots to see spread of distributions between obesity
+boxplot(insurance$log_charges ~ insurance$obesity, main = "Boxplot of log_charges based on Obesity", xlab = "Obesity", ylab = "log_charges")
+
+# F-test to check if variances of obesity are the same
+var.test(insurance$log_charges ~ insurance$obesity)
+
+# t-test to check if the means of obesity are the same
+t.test(insurance$log_charges ~ insurance$obesity, var.equal = F)
+```
+
+## 4.4 Relation between log_charges and children
+```{r}
+# Boxplots to see spread of distributions in different children groups
+boxplot(insurance$log_charges ~ insurance$new_children, main = "Boxplot of log_charges based on the Number of Children", xlab = "Number of Children", ylab = "log_charges")
+
+# ANOVA to check equality of means of different groups of children
+summary(aov(insurance$log_charges ~ insurance$new_children))
+
+# Pairwise comparisons using t-test to determine which group is significant different from the rest
+pairwise.t.test(insurance$log_charges, insurance$new_children, p.adjust.method = "none")
+```
+
+## 4.5 Relation between log_charges and sex
+
+```{r}
+# Boxplots to see spread of distributions between different sex
+boxplot(insurance$log_charges ~ insurance$sex, main = "Boxplot of log_charges based on sex", xlab = "Sex", ylab = "log_charges")
+
+# F-test to check if variances of the different sexes are the same
+var.test(insurance$log_charges ~ insurance$sex)
+
+# t-test to check if the means of the different sexes are the same
+t.test(insurance$log_charges ~ insurance$sex, var.equal = F)
+```
+
+## 4.6 Relation between log_charges and smoker
+
+```{r}
+# Boxplots to see spread of distributions based on smoking status 
+boxplot(insurance$log_charges ~ insurance$smoker, main = "Boxplot of log_charges by Smoking Status", xlab = "Smoker", ylab = "log_charges")
+
+# Create smoker and non-smoker dataset with log_charges 
+smokeyes = insurance %>%
+  filter(smoker == "yes") 
+
+smokeno = insurance %>%
+  filter(smoker == "no")
+
+# F-test to check if variances of the different smoking status are the same
+var.test(smokeyes$log_charges, smokeno$log_charges)
+
+# t-test to check if the means of the different smoking status are the same
+t.test(smokeyes$log_charges, smokeno$log_charges, var.equal = FALSE)
+```
+
+## 4.7 Relation between log_charges and region
+
+```{r}
+# Boxplots to see spread of distributions between different regions 
+boxplot(log_charges ~ region, data = insurance, main = "Boxplot of log_charges based on Regions in the U.S.")
+
+# ANOVA to check equality of means of different regions
+region_aov <- aov(log_charges ~ region, data=insurance)
+summary(region_aov)
+```
+
+
+## 4.8 Testing for Association between Significant Categorical Variabless
+
+### 4.8.1 Chi-Square Test for age_groups and obesity
+```{r}
+# Construct 2-way Contingency Table 
+age_groups_obesity = with(insurance, table(age_groups, obesity))
+age_groups_obesity
+
+# Conduct Chi-square test
+chisq.test(age_groups_obesity) # p-value = 0.0008557
+
+# Interaction Diagram
+interaction.plot(insurance$age_groups, insurance$obesity, insurance$log_charges, xlab="Age Groups", ylab="log_charges", trace.label = "Obesity", col=1:4)
+
+```
+
+### 4.8.2 Chi-Square Test for age_groups and new_children
+```{r}
+# Construct 2-way Contingency Table
+age_groups_new_children = with(insurance, table(age_groups, new_children))
+age_groups_new_children
+
+# Conduct Chi-square test
+chisq.test(age_groups_new_children) # p-value < 2.2e-16
+
+#Interaction Diagram
+interaction.plot(insurance$new_children, insurance$age_groups, insurance$log_charges, xlab="Number of Children", ylab="log_charges", trace.label = "Age Groups", col=1:3)
+```
+
+### 4.8.3 Chi-Square Test for age_groups and smoker
+```{r}
+# Construct 2-way Contingency table 
+age_groups_smoker = with(insurance, table(age_groups, smoker))
+age_groups_smoker
+
+# Conduct Chi-square test
+chisq.test(age_groups_smoker)
+```
+
+### 4.8.4 Chi-Square Test for obesity and new_children
+```{r}
+# Construct 2-way Contingency Table 
+obesity_new_children = with(insurance, table(obesity, new_children))
+obesity_new_children
+
+# Conduct Chi-square test
+chisq.test(obesity_new_children) # p-value = 0.3507
+
+```
+
+### 4.8.5 Chi-Square Test for obesity and smoker
+```{r}
+# Construct 2-way Contingency Table 
+obesity_smoker = with(insurance, table(obesity, smoker))
+obesity_smoker
+
+# Conduct Chi-square test
+chisq.test(obesity_smoker) # p-value = 1
+
+```
+
+### 4.8.6 Chi-Square Test for new_children and smoker
+```{r}
+new_children_smoker = with(insurance, table(new_children, smoker))
+new_children_smoker
+chisq.test(new_children_smoker) # p-value = 0.4487
+```
+
+## 4.9 Multiple Linear Regression
+
+```{r}
+# Initial Model 
+lm_model <- lm(log_charges ~ age + bmi + new_children + smoker + sex + region, data = insurance)
+summary(lm_model) # r squared = 0.7686
+```
+
+```{R}
+# Create dummy variables 
+insurance <- dummy_cols(insurance, select_columns = "new_children")
+insurance <- dummy_cols(insurance, select_columns = "smoker")
+
+# Interaction 1: bmi * age 
+insurance$interaction1 <- insurance$bmi * insurance$age
+
+# Interaction 2: age * new_children1
+insurance$interaction2 <- insurance$age * insurance$new_children_1
+
+# Interaction 3: age * new_children 2 or more
+insurance$interaction3 <- insurance$age * insurance$'new_children_2 or more'
+
+# Model 1 with Interaction 1
+model_interaction1 <- lm(log_charges ~ age + bmi + new_children + smoker_yes + sex + region + interaction1, data = insurance) 
+summary(model_interaction1) #r^2 = 0.7691, p > 0.05
+
+# Model 2 with Interaction 2
+model_interaction2 <- lm(log_charges ~ age + bmi + new_children + smoker_yes + sex + region + interaction2, data = insurance)
+summary(model_interaction2) #r^2 = 0.7686, p > 0.05
+
+# Model 3 with Interaction 3
+model_interaction3 <- lm(log_charges ~ age + bmi + new_children + smoker_yes + sex + region + interaction3, data = insurance) 
+summary(model_interaction3) # r^2 = 0.7749, p = 1.42e-09
+
+# Model 4 with Interactions 2,3
+model_interaction2_and_3 <- lm(log_charges ~ age + bmi + new_children + smoker_yes + sex + region + + interaction2 + interaction3, data = insurance) 
+summary(model_interaction2_and_3)
+# r^2 = 0.7752 (HIGHEST)
+# BUT P VALUE OF INTERACTION2 NOT SIGNIF = 0.182904
+
+# Model 5 with Interactions 1,2,3
+model_interaction1_2_and_3 <- lm(log_charges ~ age + bmi + new_children + smoker_yes + sex + region + interaction1 + interaction2 + interaction3, data = insurance) 
+summary(model_interaction1_2_and_3)
+# r^2: 0.7756
+# p value of int1 and int2 not signif 
+# p value for int3 = 8.04e-10
+```
+
+Without sex and region: 
+```{r}
+model_initial_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes, data = insurance) 
+summary(model_initial_revised) # r2= 0.7629 # p < 0.05 for all variables
+
+#### MODEL WITH INTERACTION 1 ONLY ####
+model_interaction1_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes + interaction1, data = insurance) #old r^2 = 0.7691 # p > 0.05
+summary(model_interaction1_revised) # new r^2: 0.7635 #  p = 0.089705
+
+#### MODEL WITH INTERACTION 2 ONLY ####
+model_interaction2_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes + interaction2, data = insurance)
+summary(model_interaction2_revised)
+# new r^2 = 0.763 # 0.737
+
+#### MODEL WITH INTERACTION 3 ONLY ####
+model_interaction3_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes  + interaction3, data = insurance) 
+summary(model_interaction3_revised) #r^2: 0.7691 # p = 3.03e-09 for int3
+
+### MODEL WITH INTERACTION 2&3 ###
+### I.E. INTERACTION EFFECTS BETWEEN AGE AND CHILDREN ###
+model_interaction2_and_3_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes  + interaction2 + interaction3, data = insurance) 
+summary(model_interaction2_and_3_revised)
+# r^2 = 0.7694 
+# BUT P VALUE OF INTERACTION2 NOT SIGNIF = 0.21556
+
+
+### MODEL WITH INTERACTIONS 1,2,3 ###
+model_interaction1_2_and_3_revised <- lm(log_charges ~ age + bmi + new_children + smoker_yes + interaction1 + interaction2 + interaction3, data = insurance) 
+summary(model_interaction1_2_and_3_revised) #r^2: 0.7698
+# p = 0.123897, p= 0.199192
+```
+
+
