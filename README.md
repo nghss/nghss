@@ -1,4 +1,4 @@
-- 👋 Hi, I’m @nghss, final year university student in Singapore.
+- 👋 Hi, I’m @nghss, a fresh graduate in Mathematical Sciences (Statistics) in Singapore.
 - 👀 I’m interested in exploring ways of making use of data for insightful analysis and visualisations
 - 💞️ I’m looking to collaborate on any data analytics related projects!
 - 📫 How to reach me -- LinkedIn: https://www.linkedin.com/in/ng-hui-shi-38554a191/
